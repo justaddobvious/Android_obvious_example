@@ -1,0 +1,81 @@
+<!--
+  ~ Copyright (c) 2019 4iiii Innovations Inc.
+  ~
+  ~ Permission is hereby granted, free of charge, to any person obtaining a copy
+  ~ of this software and associated documentation files (the "Software"), to deal
+  ~ in the Software without restriction, including without limitation the rights
+  ~ to use,copy, modify, merge, publish, distribute, sublicense, and/or sell
+  ~ copies of the Software, and to permit persons to whom the Software is
+  ~ furnished to do so, subject to the following conditions:
+  ~
+  ~ The above copyright notice and this permission notice shall be included in all
+  ~ copies or substantial portions of the Software.
+  ~
+  ~ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  ~ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  ~ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  ~ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  ~ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  ~ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  ~ SOFTWARE.
+  ~
+  -->
+
+<resources>
+    <string name="app_name">Obvious Boilerplate</string>
+    <string name="app_short_name">Boilerplate</string>
+    <string name="permission_rationale">Location permissions are required for searching for Bluetooth Low Energy devices.</string>
+    <string name="obvious_feature_update">Starting feature update&#8230;</string>
+    <string name="obvious_feature_provisioning">Provisioning&#8230;</string>
+    <string name="obvious_feature_resetting">Update successful\nWaiting for device to restart&#8230;</string>
+    <string name="obvious_feature_status_title">Feature Update Status</string>
+    <string name="obvious_feature_success">Update was completed successfully</string>
+    <string name="obvious_feature_failed">An error occurred during the update process</string>
+    <string name="obvious_feature_provfailed">An error occurred during the provisioning</string>
+    <string name="obvious_feature_itemsstate">Feature status indicator</string>
+    <string name="obvious_device_alreadyconnected">Already connected. Press SCAN to disconnect and select another device.</string>
+    <string name="obvious_device_connecting">Connecting to device&#8230;</string>
+    <string name="obvious_device_lostconnect">Lost connection to device</string>
+    <string name="obvious_device_blank">---</string>
+
+    <string name="obvious_button_connect">Connect</string>
+    <string name="obvious_button_disconnect">Disconnect</string>
+    <string name="obvious_button_scan">Scan</string>
+    <string name="obvious_button_store">Store</string>
+
+    <string name="obvious_store_error">Error loading web store</string>
+    <string name="obvious_store_retry">Retry</string>
+    <string name="obvious_store_connecting">Loading feature catalog&#8230;</string>
+
+    <string name="obvious_label_devicename">Device name</string>
+    <string name="obvious_label_deviceserial">Serial number</string>
+    <string name="obvious_label_scanlist">Devices found</string>
+    <string name="obvious_label_featurelist">Device feature list</string>
+
+    <string name="obvious_button_checkout">Checkout</string>
+    <string name="obvious_button_payment">Buy</string>
+    <string name="obvious_payment_thumbdescription">Feature thumbnail</string>
+    <string name="obvious_payment_invalidcard">Invalid Credit Card Data</string>
+    <string name="obvious_payment_processing">Processing payment&#8230;</string>
+    <string name="obvious_payment_status_title">Feature purchase</string>
+    <string name="obvious_payment_status_complete">The payment has been processed and your feature is now enabled.\nThe new feature will be activated after the next feature update.</string>
+    <string name="obvious_payment_status_failed">Unable to complete purchase.</string>
+    <string name="obvious_cart_overview">Feature Summary\n</string>
+    <string name="obvious_cart_totallabel">Total</string>
+
+    <string name="obvious_firmware_check">Checking for new firmware&#8230;</string>
+    <string name="obvious_firmware_message">New firmware is available</string>
+    <string name="obvious_firmware_upgrade">Upgrade</string>
+    <string name="obvious_firmware_ota">Starting firmware upgrade&#8230;</string>
+    <string name="obvious_firmware_otaprepare">Configuring device for upgrade&#8230;</string>
+    <string name="obvious_firmware_otaprogress">Transferring&#8230;</string>
+    <string name="obvious_firmware_otastatus">Firmware upgrade status</string>
+    <string name="obvious_firmware_otadownloaderror">Unable to download firmware</string>
+    <string name="obvious_firmware_otaupgradeerror">Firmware upgrade FAILED!</string>
+    <string name="obvious_firmware_otaupgradesuccess">Firmware upgrade SUCCESSFUL!</string>
+    <string name="obvious_firmware_otaresetting">Waiting for device to restart&#8230;</string>
+
+    <string name="nav_title_home">Devices</string>
+    <string name="nav_title_store">Store</string>
+
+</resources>

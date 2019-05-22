@@ -1,0 +1,28 @@
+<!--
+  ~ Copyright (c) 2019 to present 4iiii Innovations Inc. All rights reserved.
+  ~
+  ~ Redistribution and use in source and binary forms, with or without
+  ~ modification, are not permitted without express written approval of
+  ~ 4iiii Innovations Inc.
+  ~
+  -->
+
+<vector android:height="512dp" android:viewportHeight="2072"
+    android:viewportWidth="2072" android:width="512dp" xmlns:android="http://schemas.android.com/apk/res/android">
+    <path android:fillColor="#00B1A9" android:fillType="evenOdd"
+        android:pathData="M676.23,7.47L2009.28,546.05C2060.48,566.74 2085.22,625.02 2064.53,676.23L1525.95,2009.28C1505.26,2060.48 1446.98,2085.22 1395.77,2064.53L62.72,1525.95C11.52,1505.26 -13.22,1446.98 7.47,1395.77L546.05,62.72C566.74,11.52 625.02,-13.22 676.23,7.47Z"
+        android:strokeColor="#00000000" android:strokeWidth="1"/>
+    <path android:fillColor="#101821" android:fillType="evenOdd"
+        android:pathData="M1334.91,1443.8m-94.91,-38.34a102.36,102.36 67,1 1,189.81 76.69a102.36,102.36 67,1 1,-189.81 -76.69"
+        android:strokeColor="#00000000" android:strokeWidth="1"/>
+    <path android:fillAlpha="1" android:fillColor="#000000"
+        android:fillType="evenOdd"
+        android:pathData="M922.11,989.98m-379.62,-153.38a409.43,409.43 67,1 1,759.24 306.75a409.43,409.43 67,1 1,-759.24 -306.75"
+        android:strokeColor="#00000000" android:strokeWidth="1"/>
+    <path android:fillColor="#FFFFFF" android:fillType="evenOdd"
+        android:pathData="M922.11,989.98m-379.62,-153.38a409.43,409.43 67,1 1,759.24 306.75a409.43,409.43 67,1 1,-759.24 -306.75"
+        android:strokeColor="#00000000" android:strokeWidth="1"/>
+    <path android:fillColor="#00B1A9" android:fillType="evenOdd"
+        android:pathData="M922.11,989.99m-189.81,-76.69a204.72,204.72 67,1 1,379.62 153.38a204.72,204.72 67,1 1,-379.62 -153.38"
+        android:strokeColor="#00000000" android:strokeWidth="1"/>
+</vector>
