@@ -44,6 +44,8 @@ import android.os.Handler;
 import android.os.ParcelUuid;
 import android.util.Log;
 
+import com.obvious.mobileapi.OcelotDeviceConnector;
+
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -218,7 +220,7 @@ class BluetoothInteractor
     }
 
     /**
-     * Used to pass characteristic write errors to the App.
+     * Used to pass characteristic write status to the App.
      * @param datatype the characteristic that has changed.
      * @param status the Bluetooth error status code.
      */
@@ -638,12 +640,21 @@ class BluetoothInteractor
      * Start characteristic notification/indication configuration process for the active connection.
      */
     private void _startNotificationSetup() {
-        _handler.post(new Runnable() {
+        if (_bleDevice != null) {
+            _bleDevice.deviceConnected = true;
+            if (_deviceGatt != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                final boolean priorityStatus = _deviceGatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH);
+                if (BuildConfig.DEBUG) {
+                    Log.d(LOG_TAG, "Request connection interval CONNECTION_PRIORITY_HIGH status = " + priorityStatus);
+                }
+            }
+        }
+        _handler.postDelayed(new Runnable() {
             @Override
             public void run() {
                 _setupBluetoothNotifications();
             }
-        });
+        },750);
     }
 
     /**
@@ -725,7 +736,7 @@ class BluetoothInteractor
                                             }
                                         } catch(InterruptedException ex) {
                                             if (BuildConfig.DEBUG) {
-                                                Log.d(LOG_TAG, "\t\t\t+++++     WAITING...FAILED");
+                                                Log.d(LOG_TAG, "\t\t\t+++++     WAITING...FAILED Interrupted");
                                             }
                                         }
                                     } else {
@@ -733,7 +744,12 @@ class BluetoothInteractor
                                             Log.d(LOG_TAG, "\t\t\t+++++     write descriptor status = false");
                                         }
                                     }
-                                    if (!_descriptorStatus && ++retry < 3) { break; }
+                                    if (!_descriptorStatus && ++retry > 3) {
+                                        if (BuildConfig.DEBUG) {
+                                            Log.d(LOG_TAG, "\t\t\t+++++     write descriptor ABORTING RETRY #" + retry);
+                                        }
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -796,7 +812,8 @@ class BluetoothInteractor
                     (status == BluetoothServiceConstants.UNKNOWN_BLE_TIMEOUT_STATUS && newState == BluetoothProfile.STATE_DISCONNECTED) ||
                     (status == BluetoothServiceConstants.UNKNOWN_BLE_TERMINATED_STATUS && newState == BluetoothProfile.STATE_DISCONNECTED) ||
                     (status == BluetoothGatt.GATT_FAILURE && newState == BluetoothProfile.STATE_CONNECTED) ||
-                    (status == BluetoothServiceConstants.UNKNOWN_BLE_ERROR_STATUS)) {
+                    (status == BluetoothServiceConstants.UNKNOWN_BLE_ERROR_STATUS) ||
+                    (status == OcelotDeviceConnector.CONNECTION_STATUS_DISCONNECTED_BY_DEVICE)) {
 
                 if (BuildConfig.DEBUG) {
                     Log.d(LOG_TAG,"onConnectionStateChange() -- status = " + status);
@@ -895,7 +912,7 @@ class BluetoothInteractor
         @Override
         public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             super.onCharacteristicWrite(gatt, characteristic, status);
-            _notifyWriteStatus(characteristic.getUuid().toString(),status);
+            _notifyWriteStatus(characteristic.getUuid().toString(), status);
         }
 
         /**
@@ -923,7 +940,7 @@ class BluetoothInteractor
                     Log.d(LOG_TAG, "onDescriptorWrite() -- status = " + status);
                     Log.d(LOG_TAG, "onDescriptorWrite() --  Signal _descriptorLock");
                 }
-                _descriptorStatus = true;
+                _descriptorStatus = (status == BluetoothGatt.GATT_SUCCESS);
                 _descriptorLock.notifyAll();
             }
         }

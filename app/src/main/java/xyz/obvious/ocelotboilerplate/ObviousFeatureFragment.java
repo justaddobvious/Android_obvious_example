@@ -30,6 +30,7 @@ import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -37,16 +38,20 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.ViewFlipper;
 
 import com.google.android.material.snackbar.Snackbar;
+import com.obvious.mobileapi.OcelotDeviceInfo;
+import com.obvious.mobileapi.OcelotDeviceInfoListener;
 import com.obvious.mobileapi.OcelotFeatureEventListener;
 import com.obvious.mobileapi.OcelotFeatureManager;
 import com.obvious.mobileapi.OcelotFirmwareAvailableListener;
 import com.obvious.mobileapi.OcelotFirmwareEventListener;
 import com.obvious.mobileapi.OcelotFirmwareManager;
+import com.obvious.mobileapi.OcelotToggleEventListener;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -69,13 +74,18 @@ public class ObviousFeatureFragment extends Fragment implements
         OcelotFirmwareAvailableListener,
         OcelotFirmwareEventListener,
         ObviousBoilerplateActivity.OnFragmentBackpressListener,
-        EasyPermissions.PermissionCallbacks
+        EasyPermissions.PermissionCallbacks,
+        FeatureListAdapter.FeatureListOnClickListener,
+        OcelotToggleEventListener,
+        OcelotDeviceInfoListener
 {
 
     private String LOG_TAG = ObviousFeatureFragment.class.getSimpleName();
 
     static final String FEATURE_NAME = "name";
     static final String FEATURE_STATUS = "state";
+    static final String FEATURE_ACTIVE = "active";
+    static final String FEATURE_ID = "fid";
 
     private static final String[] REQUIRED_PERMISSIONS = {
             Manifest.permission.ACCESS_COARSE_LOCATION,
@@ -93,11 +103,17 @@ public class ObviousFeatureFragment extends Fragment implements
     private Iterator<Map.Entry<String,Integer>> featureKeys = null;
     private Map.Entry<String,Integer> featureEntry = null;
     private boolean _pendingReset = false;
+    private boolean _pendingToggle = false;
 
     private BluetoothInteractor _serviceClient = null;
 
     private ProgressDialog _progressDlg = null;
     private HashMap<String, Integer> _obviousFeatures = null;
+
+    private String _prodId = null;
+    private String _fwver = null;;
+    private String _fwbootver = null;;
+    private String _fwsoftver = null;;
 
     private ArrayAdapter<String> scanListAdapter = null;
     private FeatureListAdapter featureListAdapter = null;
@@ -110,6 +126,7 @@ public class ObviousFeatureFragment extends Fragment implements
 
     private Snackbar _firmwareAvail = null;
     private boolean _firmwareInprogress = false;
+    private boolean _firmwareManualCheck = false;
 
     @Nullable
     @Override
@@ -151,10 +168,22 @@ public class ObviousFeatureFragment extends Fragment implements
         tmpList = tmpView.findViewById(R.id.featurelist);
         if (tmpList != null) {
             if (featureListAdapter == null && getContext() != null) {
-                featureListAdapter = new FeatureListAdapter(getContext(), R.layout.activity_obvious_feature_item);
+                featureListAdapter = new FeatureListAdapter(getContext(), R.layout.activity_obvious_feature_item, this);
             }
             tmpList.setAdapter(featureListAdapter);
         }
+
+        ImageButton tmpImgBtn = tmpView.findViewById(R.id.featuredevicefirmwarecheck);
+        if (tmpImgBtn != null) {
+            tmpImgBtn.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    _firmwareManualCheck = true;
+                    _startFirmwareCheckProcess();
+                }
+            });
+        }
+
         rootView = tmpView;
         return rootView;
     }
@@ -214,6 +243,9 @@ public class ObviousFeatureFragment extends Fragment implements
         if (_obviousMgr == null) {
             _obviousMgr = OcelotFeatureManager.getFeatureManager();
             _obviousMgr.setFeatureEventListener(this);
+            if (getActivity() != null && getActivity().getApplicationContext() != null) {
+                _obviousMgr.setToggleConfigs(this,getActivity().getApplicationContext());
+            }
             if (getActivity() != null) {
                 _obviousMgr.setFileCacheDirectory(getActivity().getCacheDir().getAbsolutePath());
             }
@@ -308,6 +340,10 @@ public class ObviousFeatureFragment extends Fragment implements
         _devSN = null;
         _bleDev = new BluetoothObviousDevice(_serviceClient,selectedMAC);
 
+        // When connection to a new device, we want to initialize new managers
+        _obviousMgr = null;
+        _obviousFirmwareMgr = null;
+
         // The first thing we want to do is check if there is any new firmware for the Obvious device.
         // We setup the firmware manager at this point and configure the connector so that the manager can
         // communicate with the Obvious profile.
@@ -331,26 +367,27 @@ public class ObviousFeatureFragment extends Fragment implements
                             Log.d(LOG_TAG, "\t---- Disconnected");
                         }
                         // The firmware update process may restart the device so we will ignore this event if there is a firmware update in progress
-                        if (_firmwareInprogress) {
+                        if (_firmwareInprogress || _pendingToggle) {
                             return;
                         }
                         if (_bleDev != null) {
                             _bleDev.disconnect();
                         }
                         _bleDev = null;
-                        _updateDataDisplay(_pendingReset ? selectedName : null);
+                        _updateDataDisplay((_pendingReset || _pendingToggle) ? selectedName : null);
                     }
                     if (status == BluetoothServiceConstants.CONNECTION_STATUS_SUCCESS && newState == BluetoothServiceConstants.CONNECTION_STATE_CONNECTED) {
                         if (BuildConfig.DEBUG) {
                             Log.d(LOG_TAG, "\t++++ Connected");
                         }
                         // The firmware update process may restart the device so we will ignore this event if there is a firmware update in progress
-                        if (_firmwareInprogress) {
+                        if (_firmwareInprogress || _pendingToggle) {
                             return;
                         }
                         _updateDataDisplay(selectedName);
 
                         // After the device is connected start the firmware check process
+                        _firmwareManualCheck = false;
                         _startFirmwareCheckProcess();
                     }
                 }
@@ -359,7 +396,7 @@ public class ObviousFeatureFragment extends Fragment implements
     }
 
     private void _updateDataDisplay(String devName) {
-        if (_progressDlg != null) {
+        if (_progressDlg != null && !_pendingToggle) {
             _progressDlg.dismiss();
             _progressDlg = null;
         }
@@ -397,6 +434,30 @@ public class ObviousFeatureFragment extends Fragment implements
                 tmpText.setText(R.string.obvious_device_blank);
             }
         }
+        tmpText = (TextView)rootView.findViewById(R.id.featuredevicefirmware);
+        if (tmpText != null) {
+            if (devName != null && _fwver != null && !"".equals(_fwver)) {
+                tmpText.setText(_fwver);
+            } else {
+                tmpText.setText(R.string.obvious_device_blank);
+            }
+        }
+        tmpText = (TextView)rootView.findViewById(R.id.featuredeviceboot);
+        if (tmpText != null) {
+            if (devName != null && _fwbootver != null && !"".equals(_fwbootver)) {
+                tmpText.setText(_fwbootver);
+            } else {
+                tmpText.setText(R.string.obvious_device_blank);
+            }
+        }
+        tmpText = (TextView)rootView.findViewById(R.id.featuredevicesoft);
+        if (tmpText != null) {
+            if (devName != null && _fwsoftver != null && !"".equals(_fwsoftver)) {
+                tmpText.setText(_fwsoftver);
+            } else {
+                tmpText.setText(R.string.obvious_device_blank);
+            }
+        }
 
         if (_bleDev != null && !_bleDev.isConnected()) {
             if (featureListAdapter != null) {
@@ -416,13 +477,16 @@ public class ObviousFeatureFragment extends Fragment implements
     /**
      * Process the status of the feature check.
      * @param featureid The feature id of the feature being checked
+     * @param featureName The display name of the feature
      * @param status The enabled (1) or disabled (0) status of the feature
      */
-    private void _updateFeatureDisplay(String featureid, int status) {
+    private void _updateFeatureDisplay(int featureid, String featureName, OcelotFeatureStatus status) {
         if (featureListAdapter != null) {
             HashMap<String,String> featureInfo = new HashMap<>();
-            featureInfo.put(ObviousFeatureFragment.FEATURE_NAME, featureid);
-            featureInfo.put(ObviousFeatureFragment.FEATURE_STATUS, String.valueOf(status));
+            featureInfo.put(ObviousFeatureFragment.FEATURE_NAME, featureName);
+            featureInfo.put(ObviousFeatureFragment.FEATURE_STATUS, status.getEnableState().toString());
+            featureInfo.put(ObviousFeatureFragment.FEATURE_ACTIVE, status.getToggleState().toString());
+            featureInfo.put(ObviousFeatureFragment.FEATURE_ID, String.valueOf(featureid));
             featureListAdapter.add(featureInfo);
             featureListAdapter.notifyDataSetChanged();
         }
@@ -437,6 +501,15 @@ public class ObviousFeatureFragment extends Fragment implements
                 featureListAdapter.clear();
                 featureListAdapter.notifyDataSetChanged();
             }
+
+            if (_progressDlg != null) {
+                _progressDlg.dismiss();
+                _progressDlg = null;
+            }
+
+            _progressDlg = ProgressDialog.show(getContext(), null, getString(R.string.obvious_feature_loadstatus), true, false);
+            _progressDlg.show();
+
             _obviousMgr.getFeatureList();
         }
     }
@@ -453,14 +526,6 @@ public class ObviousFeatureFragment extends Fragment implements
             if (_progressDlg != null) {
                 _progressDlg.dismiss();
                 _progressDlg = null;
-            }
-
-            _devSN = _obviousMgr.getDeviceUniqueIdentifier();
-            if (getFragmentManager() != null) {
-                Fragment state = getFragmentManager().findFragmentByTag(ObviousBoilerplateActivity.STATE_TAG);
-                if (state instanceof ObviousAppStateFragment) {
-                    ((ObviousAppStateFragment) state).setDeviceSerialnumber(_devSN);
-                }
             }
 
             _updateDataDisplay(selectedName);
@@ -480,14 +545,17 @@ public class ObviousFeatureFragment extends Fragment implements
             _progressDlg.dismiss();
             _progressDlg = null;
         }
-        _progressDlg = ProgressDialog.show(getContext(),null, getString(R.string.obvious_feature_update),true,false);
-        _progressDlg.show();
 
         _setupFeatureManager();
         if (_obviousMgr != null && _bleDev != null) {
             _bleDev.setupObvious(_obviousMgr.getDeviceConnector());
+        }
+        if (!_firmwareManualCheck && _obviousMgr != null && _bleDev != null) {
+            _progressDlg = ProgressDialog.show(getContext(), null, getString(R.string.obvious_feature_update), true, false);
+            _progressDlg.show();
             _obviousMgr.startFeatureUpdate();
         }
+        _firmwareManualCheck = false;
     }
 
     /**
@@ -626,12 +694,7 @@ public class ObviousFeatureFragment extends Fragment implements
      */
     @Override
     public void onCheckFeatureStatus(int featureid, int status) {
-        if (featureEntry != null && featureEntry.getValue() == featureid) {
-            _updateFeatureDisplay(featureEntry.getKey(), status);
-        } else {
-            featureKeys = null;
-        }
-        _processFeatureList();
+        // Not implemented - using new enabled and toggle information statuses
     }
 
     /**
@@ -643,6 +706,7 @@ public class ObviousFeatureFragment extends Fragment implements
     public void onFeatureList(HashMap<String, Integer> features) {
         featureListAdapter.clear();
         featureListAdapter.notifyDataSetChanged();
+        _obviousMgr.getDeviceInfo(this);
 
         _obviousFeatures = new HashMap<>(features);
         featureKeys = _obviousFeatures.entrySet().iterator();
@@ -708,7 +772,6 @@ public class ObviousFeatureFragment extends Fragment implements
             _clearProgressDialog();
             _progressDlg = ProgressDialog.show(getContext(),null, getString(R.string.obvious_firmware_otaresetting),true,false);
             _progressDlg.show();
-            _firmwareInprogress = false;
         } else {
             if (_progressDlg == null || _progressDlg.isIndeterminate()) {
                 _clearProgressDialog();
@@ -749,13 +812,18 @@ public class ObviousFeatureFragment extends Fragment implements
      */
     @Override
     public void onFirmwareUpgradeSuccessful() {
-        _firmwareInprogress = false;
         _clearProgressDialog();
         AlertDialog.Builder alert = new AlertDialog.Builder(getContext());
         alert.setTitle(R.string.obvious_firmware_otastatus)
                 .setMessage(R.string.obvious_firmware_otaupgradesuccess)
                 .setCancelable(true);
         alert.show();
+
+        _progressDlg = ProgressDialog.show(getContext(), null, getString(R.string.obvious_firmware_loadversioninfo), true, false);
+        _progressDlg.show();
+
+        _obviousMgr = null;
+        _obviousFirmwareMgr.getDeviceInfo(this);
     }
 
     /**
@@ -772,8 +840,124 @@ public class ObviousFeatureFragment extends Fragment implements
         alert.show();
     }
     //
-    // OcelotFeatureEventListener interface implementation END
+    // OcelotDeviceInfoListener interface implementation END
     //
+
+    //
+    // OcelotFeatureEventListener interface implementation START
+    //
+    @Override
+    public void onDeviceInfoAvailable(OcelotDeviceInfo ocelotDeviceInfo) {
+        _devSN = ocelotDeviceInfo.getSerialNumber();
+        _prodId = ocelotDeviceInfo.getProductIdentifier();
+        if (_prodId == null || _prodId.equals("") || _prodId.equals("-1")) {
+            _prodId = ObviousProductIdentifier.MANUFACTURER_PRODUCT_ID1;
+        }
+        _fwver = ocelotDeviceInfo.getFirmwareVersion();
+        _fwbootver = ocelotDeviceInfo.getBootLoaderVersion();
+        _fwsoftver = ocelotDeviceInfo.getSoftDeviceVersion();
+        if (getFragmentManager() != null) {
+            Fragment state = getFragmentManager().findFragmentByTag(ObviousBoilerplateActivity.STATE_TAG);
+            if (state instanceof ObviousAppStateFragment) {
+                ((ObviousAppStateFragment) state).setDeviceSerialnumber(_devSN);
+            }
+        }
+
+        if (_firmwareInprogress) {
+            _firmwareInprogress = false;
+            _updateDataDisplay(selectedName);
+        }
+    }
+    //
+    // OcelotDeviceInfoListener interface implementation END
+    //
+
+    //
+    // OcelotToggleEventListener interface implementation START
+    //
+    @Override
+    public void onCheckFeatureStatuses(Map<Integer, OcelotFeatureStatus> featureStatusMap) {
+
+    }
+
+    @Override
+    public void onCheckFeatureStatus(int featureId, OcelotFeatureStatus ocelotFeatureStatus) {
+        if (featureEntry != null && featureEntry.getValue() == featureId) {
+            _updateFeatureDisplay(featureEntry.getValue(), featureEntry.getKey(), ocelotFeatureStatus);
+        } else {
+            featureKeys = null;
+        }
+        _processFeatureList();
+    }
+
+    @Override
+    public void didToggleFeatureStatus(int featureId, OcelotFeatureStatus ocelotFeatureStatus) {
+        if (_progressDlg != null) {
+            _progressDlg.dismiss();
+            _progressDlg = null;
+        }
+        _pendingToggle = false;
+        if (featureListAdapter != null) {
+            _updateFeatureDisplay(featureId, null, ocelotFeatureStatus);
+        }
+    }
+
+    @Override
+    public void didToggleFeatureStatuses(Map<Integer, OcelotFeatureStatus> map) {
+        if (_progressDlg != null) {
+            _progressDlg.dismiss();
+            _progressDlg = null;
+        }
+        if (BuildConfig.DEBUG) {
+            Log.d(LOG_TAG, "didToggleFeatureStatuses -- DONE");
+        }
+        _pendingToggle = false;
+    }
+
+    @Override
+    public void featureStatusFailure() {
+        if (BuildConfig.DEBUG) {
+            Log.d(LOG_TAG, " -------- Feature Status Checking or Toggling Failed --------");
+        }
+        if (!_pendingToggle) {
+            final Handler handler = new Handler();
+            handler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    _checkFeatureStatus();
+                }
+            }, 300);
+        } else {
+            _clearProgressDialog();
+
+            AlertDialog.Builder alert = new AlertDialog.Builder(getContext());
+            alert.setTitle(R.string.obvious_feature_status_title)
+                    .setMessage(R.string.obvious_feature_togglefailed)
+                    .setCancelable(true);
+            alert.show();
+
+            onBackPressed();
+        }
+        _pendingToggle = false;
+    }
+    //
+    // OcelotToggleEventListener interface implementation START
+    //
+
+    @Override
+    public void onToggleCheckChanged(int position, int featureId, boolean isChecked) {
+        if (_obviousMgr != null) {
+            if (_progressDlg != null) {
+                _progressDlg.dismiss();
+                _progressDlg = null;
+            }
+            _progressDlg = ProgressDialog.show(getContext(),null, getString(R.string.obvious_feature_toggle),true,false);
+            _progressDlg.show();
+
+            _pendingToggle = true;
+            _obviousMgr.toggleFeature(featureId);
+        }
+    }
 
     //
     // EasyPermissions handing START

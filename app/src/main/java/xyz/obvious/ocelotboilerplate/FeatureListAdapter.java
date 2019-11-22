@@ -24,17 +24,23 @@
 package xyz.obvious.ocelotboilerplate;
 
 import android.content.Context;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import android.util.Log;
+import android.util.SparseIntArray;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.CompoundButton;
 import android.widget.ImageView;
+import android.widget.Switch;
 import android.widget.TextView;
 
+import com.obvious.mobileapi.OcelotToggleEventListener;
+
 import java.util.HashMap;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 /**
  * Custom ArrayAdapter for displaying the feature items available for the manufacturer.  This adapter
@@ -44,16 +50,24 @@ public class FeatureListAdapter extends ArrayAdapter<HashMap<String,String>> {
 
     private int itemResId;
     private LayoutInflater inflater;
+    private FeatureListOnClickListener _listener;
+
+    private SparseIntArray _featurePosition = new SparseIntArray();
+
+    public interface FeatureListOnClickListener {
+        void onToggleCheckChanged(int position, int featureId, boolean isChecked);
+    }
 
     /**
      * Constructor for the ArrayAdapter.
      * @param context the context to use for the adapter.
      * @param resource the custom view that should be used to display the content.
      */
-    FeatureListAdapter(@NonNull Context context, int resource) {
+    FeatureListAdapter(@NonNull Context context, int resource, FeatureListOnClickListener listener) {
         super(context, resource);
         itemResId = resource;
         inflater = LayoutInflater.from(context);
+        _listener = listener;
     }
 
     /**
@@ -67,13 +81,28 @@ public class FeatureListAdapter extends ArrayAdapter<HashMap<String,String>> {
     @Override
     public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
 
-        Object viewHolder;
+        final Object viewHolder;
 
         if (convertView == null) {
             convertView = inflater.inflate(itemResId,null);
             viewHolder = new ViewHolder();
             ((ViewHolder)viewHolder).name = convertView.findViewById(R.id.featurename);
             ((ViewHolder)viewHolder).stateIcon = convertView.findViewById(R.id.featurestate);
+            ((ViewHolder)viewHolder).toggleSwitch = convertView.findViewById(R.id.featurestoggle);
+            ((ViewHolder)viewHolder).toggleSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    final int position = ((ViewHolder)viewHolder).position;
+                    final int featureid = ((ViewHolder)viewHolder).featureid;
+
+                    if (buttonView.isPressed() && position != -1) {
+                        buttonView.setEnabled(false);
+                        if (FeatureListAdapter.this._listener != null) {
+                            FeatureListAdapter.this._listener.onToggleCheckChanged(position, featureid, isChecked);
+                        }
+                    }
+                }
+            });
             convertView.setTag(viewHolder);
         } else {
             viewHolder = convertView.getTag();
@@ -81,15 +110,65 @@ public class FeatureListAdapter extends ArrayAdapter<HashMap<String,String>> {
 
         HashMap<String,String> infoItem = getItem(position);
         if (infoItem != null && viewHolder != null) {
+            ((ViewHolder)viewHolder).position = position;
+            String curFeature = infoItem.get(ObviousFeatureFragment.FEATURE_ID);
+            if (curFeature != null) {
+                ((ViewHolder) viewHolder).featureid = Integer.valueOf(curFeature);
+            } else {
+                ((ViewHolder) viewHolder).featureid = -1;
+            }
             ((ViewHolder)viewHolder).name.setText(infoItem.get(ObviousFeatureFragment.FEATURE_NAME));
             String itemStatus = infoItem.get(ObviousFeatureFragment.FEATURE_STATUS);
-            if (itemStatus == null) { itemStatus = "0"; }
-            (((ViewHolder)viewHolder).stateIcon).setImageResource(Integer.valueOf(itemStatus) == 1 ? R.drawable.ic_feature_enabled_24px : R.drawable.ic_feature_disabled_24px);
-            (((ViewHolder)viewHolder).stateIcon).setImageAlpha(Integer.valueOf(itemStatus) == 1 ? 0xff : (0xff / 4));
+            if (itemStatus == null) { itemStatus = OcelotToggleEventListener.OcelotEnableStatus.Enabled.toString(); }
+            String itemActive = infoItem.get(ObviousFeatureFragment.FEATURE_ACTIVE);
+            if (itemActive == null) { itemActive = OcelotToggleEventListener.OcelotToggleStatus.Unknown.toString(); }
+            boolean featureEnabled = OcelotToggleEventListener.OcelotEnableStatus.Enabled.toString().equals(itemStatus);
+            (((ViewHolder)viewHolder).stateIcon).setImageResource(featureEnabled ? R.drawable.ic_feature_enabled_24px : R.drawable.ic_feature_disabled_24px);
+            (((ViewHolder)viewHolder).stateIcon).setImageAlpha(featureEnabled ? 0xff : (0xff / 4));
+            if (featureEnabled && !itemActive.equals(OcelotToggleEventListener.OcelotToggleStatus.Unsupported.toString())) {
+                boolean toggleEnabled = OcelotToggleEventListener.OcelotToggleStatus.Activated.toString().equals(itemActive);
+                (((ViewHolder)viewHolder).toggleSwitch).setChecked(toggleEnabled);
+                (((ViewHolder)viewHolder).toggleSwitch).setVisibility(View.VISIBLE);
+                (((ViewHolder)viewHolder).toggleSwitch).setEnabled(true);
+            } else {
+                (((ViewHolder)viewHolder).toggleSwitch).setVisibility(View.INVISIBLE);
+                (((ViewHolder)viewHolder).toggleSwitch).setEnabled(false);
+            }
         } else {
+            if (viewHolder != null) {
+                ((ViewHolder) viewHolder).position = -1;
+                ((ViewHolder) viewHolder).featureid = -1;
+            }
             Log.d(this.getClass().getSimpleName(), "itemInfo is null");
         }
         return convertView;
+    }
+
+    @Override
+    public void add(@Nullable HashMap<String, String> infoItem) {
+        if (infoItem == null) { return; }
+
+        String featureStr = infoItem.get(ObviousFeatureFragment.FEATURE_ID);
+        if (featureStr == null) { return; }
+
+        int featureid = Integer.valueOf(featureStr);
+        int featurePos = _featurePosition.get(featureid,-1);
+        if (featurePos == -1 || getCount() == 0) {
+            super.add(infoItem);
+            _featurePosition.put(featureid,getPosition(infoItem));
+        } else {
+            HashMap<String, String> curInfo = getItem(featurePos);
+            infoItem.put(ObviousFeatureFragment.FEATURE_NAME,curInfo.get(ObviousFeatureFragment.FEATURE_NAME));
+            remove(curInfo);
+            insert(infoItem,featurePos);
+            _featurePosition.put(featureid,featurePos);
+        }
+    }
+
+    @Override
+    public void clear() {
+        super.clear();
+        _featurePosition.clear();
     }
 
     /**
@@ -98,5 +177,8 @@ public class FeatureListAdapter extends ArrayAdapter<HashMap<String,String>> {
     private static class ViewHolder {
         ImageView stateIcon = null;
         TextView name = null;
+        Switch toggleSwitch = null;
+        int position = -1;
+        int featureid = -1;
     }
 }

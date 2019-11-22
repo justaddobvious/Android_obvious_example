@@ -82,7 +82,7 @@
         </LinearLayout>
     </ScrollView>
 
-    <com.stripe.android.view.CardMultilineWidget
+    <com.obvious.mobileapi.payment.OcelotCheckoutWidget
         android:id="@+id/cartcard"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

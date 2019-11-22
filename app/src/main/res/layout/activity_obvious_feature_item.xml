@@ -34,7 +34,7 @@
         android:id="@+id/featurename"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
+        android:layout_weight="0.8"
         tools:text="@tools:sample/lorem"
         android:textSize="18sp"
         android:textStyle="bold"/>
@@ -44,9 +44,17 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_vertical"
+        android:layout_weight="0.1"
         android:paddingStart="8dp"
         android:paddingEnd="8dp"
         tools:srcCompat="@drawable/ic_feature_enabled_24px"
         android:contentDescription="@string/obvious_feature_itemsstate"/>
+
+    <Switch
+        android:id="@+id/featurestoggle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_weight="0.1"
+        android:text="" />
 
 </LinearLayout>

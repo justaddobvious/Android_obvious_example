@@ -27,13 +27,8 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.os.Bundle;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentActivity;
-import xyz.obvious.manufacturer.ObviousProductIdentifier;
-
 import android.util.SparseBooleanArray;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -46,17 +41,20 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ViewFlipper;
 
-import com.obvious.mobileapi.OcelotCatalogInteractor;
 import com.obvious.mobileapi.OcelotCatalogCheckoutResultListener;
+import com.obvious.mobileapi.OcelotCatalogInteractor;
 import com.obvious.mobileapi.OcelotCatalogListResultListener;
-import com.stripe.android.Stripe;
-import com.stripe.android.TokenCallback;
-import com.stripe.android.model.Card;
-import com.stripe.android.model.Token;
-import com.stripe.android.view.CardMultilineWidget;
+import com.obvious.mobileapi.payment.OcelotCheckoutWidget;
+import com.obvious.mobileapi.payment.OcelotPaymentClient;
 
 import java.util.ArrayList;
 import java.util.Locale;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentActivity;
+import xyz.obvious.manufacturer.ObviousProductIdentifier;
 
 public class ObviousStoreFragment extends Fragment implements
         OcelotCatalogCheckoutResultListener,
@@ -72,10 +70,12 @@ public class ObviousStoreFragment extends Fragment implements
 
     private OcelotCatalogInteractor catalogInteractor = null;
     private CatalogListAdapter defaultCatalogAdapter = null;
-    private Token stripeToken = null;
+    private OcelotPaymentClient paymentClient = null;
 
     private int _checkoutCartid = -1;
     private SparseBooleanArray _cartContent = null;
+
+    private boolean _pendingPaymentResult = false;
 
     @Nullable
     @Override
@@ -113,6 +113,14 @@ public class ObviousStoreFragment extends Fragment implements
     public void onStart() {
         super.onStart();
         _storeClicked();
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        if (_progressDlg != null && !_pendingPaymentResult) {
+            _clearProgressDialog();
+        }
     }
 
     private void _clearProgressDialog() {
@@ -158,7 +166,7 @@ public class ObviousStoreFragment extends Fragment implements
             catalogInteractor.checkoutCart( cartItems, _devSN, ObviousProductIdentifier.MANUFACTURER_PRODUCT_ID1);
         }
 
-        CardMultilineWidget ccInput = flipper.findViewById(R.id.cartcard);
+        OcelotCheckoutWidget ccInput = flipper.findViewById(R.id.cartcard);
         ccInput.clear();
     }
 
@@ -203,7 +211,7 @@ public class ObviousStoreFragment extends Fragment implements
             tmpPrice.setText(msgPrice);
         }
 
-        CardMultilineWidget ccInput = flipper.findViewById(R.id.cartcard);
+        OcelotCheckoutWidget ccInput = flipper.findViewById(R.id.cartcard);
         if (ccInput != null) {
             ccInput.clear();
         }
@@ -214,18 +222,20 @@ public class ObviousStoreFragment extends Fragment implements
     }
 
     /**
-     * Complete the tokenization of the payment information and pass that on to OcelotCatalogInteractor
+     * Complete the tokenization of the payment information and pass that on to OcelotCatalogInteractor.
+     * The OcelotCatalogInteractor completes the purchase transaction.  The result of the payment is return via
+     * the OcelotCatalogCheckoutResultListener interface.
      */
     private void _paymentClicked() {
         final ViewFlipper flipper = rootView.findViewById(R.id.store_flipper);
-        if (flipper == null || flipper.getDisplayedChild() != PAYMENT_PAGE) {
+        if (flipper == null || flipper.getDisplayedChild() != PAYMENT_PAGE || getActivity() == null) {
             return;
         }
 
-        CardMultilineWidget ccInput = flipper.findViewById(R.id.cartcard);
-        Card stripeCC = (ccInput != null ? ccInput.getCard() : null);
-        if (stripeCC == null) {
-            Toast.makeText(getContext(), R.string.obvious_payment_invalidcard,Toast.LENGTH_SHORT).show();
+        paymentClient = OcelotPaymentClient.getDemoPaymentClient(getActivity().getApplicationContext(), catalogInteractor, this);
+        OcelotCheckoutWidget ccInput = flipper.findViewById(R.id.cartcard);
+        if (!paymentClient.validatePaymentData(ccInput)) {
+            Toast.makeText(getContext(), R.string.obvious_payment_invalidcard, Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -241,38 +251,7 @@ public class ObviousStoreFragment extends Fragment implements
         _progressDlg = ProgressDialog.show(getContext(),null,getString(R.string.obvious_payment_processing),true,false);
         _progressDlg.show();
 
-        Stripe stripe = new Stripe(getActivity().getApplicationContext(), catalogInteractor.getPublishableStripeKey());
-        stripe.createToken(
-                stripeCC,
-                new TokenCallback() {
-                    public void onSuccess(@NonNull Token token) {
-                        // Send token to your server
-                        stripeToken = token;
-                        if (!stripeToken.getUsed()) {
-                            _cartPayment();
-                        } else {
-                            _clearProgressDialog();
-                            stripeToken = null;
-                            Toast.makeText(getContext(),R.string.obvious_payment_invalidcard,Toast.LENGTH_LONG).show();
-                        }
-                    }
-
-                    public void onError(@NonNull Exception error) {
-                        _clearProgressDialog();
-                        stripeToken = null;
-                        // Show localized error message
-                        Toast.makeText(getContext(),error.getLocalizedMessage(),Toast.LENGTH_LONG).show();
-                    }
-                }
-        );
-    }
-
-    /**
-     * Use the OcelotCatalogInteractor to complete the purchase transaction.  The result of the payment is return via
-     * the onCheckoutPaySuccess() or onCheckoutPayFail() of the OcelotCatalogCheckoutResultListener interface.
-     */
-    private void _cartPayment() {
-        if (catalogInteractor != null && stripeToken != null && _checkoutCartid != -1) {
+        if (catalogInteractor != null && _checkoutCartid != -1) {
             String _devSN = null;
             if (getFragmentManager() != null) {
                 Fragment state = getFragmentManager().findFragmentByTag(ObviousBoilerplateActivity.STATE_TAG);
@@ -280,17 +259,11 @@ public class ObviousStoreFragment extends Fragment implements
                     _devSN = ((ObviousAppStateFragment) state).getDeviceSerialnumber();
                 }
             }
-
-            CardMultilineWidget ccInput = rootView.findViewById(R.id.cartcard);
-            if (ccInput != null) {
-                ccInput.clear();
-            }
-
-            //Toast.makeText(getContext(),R.string.obvious_payment_processing,Toast.LENGTH_SHORT).show();
-            catalogInteractor.checkoutPay(_checkoutCartid, stripeToken.getId(), _devSN,  ObviousProductIdentifier.MANUFACTURER_PRODUCT_ID1);
+            paymentClient.startPaymentProcessing(ccInput, _checkoutCartid, _devSN, ObviousProductIdentifier.MANUFACTURER_PRODUCT_ID1);
+            ccInput.clear();
         } else {
             _clearProgressDialog();
-            Toast.makeText(getContext(),R.string.obvious_payment_invalidcard,Toast.LENGTH_SHORT).show();
+            Toast.makeText(getContext(), R.string.obvious_payment_invalidcard, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -370,8 +343,10 @@ public class ObviousStoreFragment extends Fragment implements
             });
         }
 
-        _progressDlg = ProgressDialog.show(getContext(),null,getString(R.string.obvious_store_connecting),true,false);
-        _progressDlg.show();
+        if (!_pendingPaymentResult) {
+            _progressDlg = ProgressDialog.show(getContext(), null, getString(R.string.obvious_store_connecting), true, false);
+            _progressDlg.show();
+        }
 
         // setup the OcelotCatalogInteractor with the proper callbacks so that the app can process the catalog and check out events
         if (catalogInteractor == null) {
@@ -380,7 +355,7 @@ public class ObviousStoreFragment extends Fragment implements
             catalogInteractor.setCatalogListener(this);
             catalogInteractor.setCheckoutListener(this);
         }
-        catalogInteractor.getDefaultCatalog();
+        catalogInteractor.getDefaultCatalog(ObviousProductIdentifier.MANUFACTURER_PRODUCT_ID1);
     }
 
 
@@ -394,7 +369,9 @@ public class ObviousStoreFragment extends Fragment implements
      */
     @Override
     public void onCatalogListSuccess(final ArrayList<CatalogItem> catalogItems) {
-        _clearProgressDialog();
+        if (!_pendingPaymentResult) {
+            _clearProgressDialog();
+        }
 
         if (defaultCatalogAdapter == null) {
             return;
@@ -444,7 +421,7 @@ public class ObviousStoreFragment extends Fragment implements
      * @param cartId The cart id of the newly created cart for the transaction.
      */
     @Override
-    public void onCheckoutCartSucess(final float totalCost, final int cartId) {
+    public void onCheckoutCartSuccess(final float totalCost, final int cartId) {
         // navigate to the summary page and CC data collection page
         if (getActivity() != null) {
             getActivity().runOnUiThread(new Runnable() {
@@ -462,7 +439,6 @@ public class ObviousStoreFragment extends Fragment implements
     @Override
     public void onCheckoutCartFail() {
         _checkoutCartid = -1;
-        stripeToken = null;
         // TODO: display cart error message
     }
 
@@ -480,6 +456,7 @@ public class ObviousStoreFragment extends Fragment implements
                 }
             });
         }
+        _pendingPaymentResult = false;
     }
 
     /**
@@ -495,7 +472,15 @@ public class ObviousStoreFragment extends Fragment implements
                 }
             });
         }
+        _pendingPaymentResult = false;
     }
+
+    @Override
+    public void onCheckoutPayActionRequired(String paymentSecret) {
+        _pendingPaymentResult = true;
+        paymentClient.authenticatePayment(this, paymentSecret);
+    }
+
     //
     // implementation of the OcelotCatalogCheckoutResultListener - END
     //
@@ -516,5 +501,14 @@ public class ObviousStoreFragment extends Fragment implements
             status = true;
         }
         return status;
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (paymentClient != null && _checkoutCartid != -1) {
+            _pendingPaymentResult = true;
+            paymentClient.onPaymentResult(requestCode, data, _checkoutCartid);
+        }
     }
 }

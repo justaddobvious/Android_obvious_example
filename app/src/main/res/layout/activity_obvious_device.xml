@@ -78,6 +78,94 @@
         app:layout_constraintEnd_toEndOf="parent"
         />
 
+    <TextView
+        android:id="@+id/featuredevicefirmwarelabel"
+        android:layout_width="wrap_content"
+        android:layout_height="0dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        android:gravity="center_vertical"
+        android:text="@string/obvious_label_devicefirmware"
+        app:layout_constraintTop_toTopOf="@+id/featuredevicefirmwarelayout"
+        app:layout_constraintBottom_toBottomOf="@+id/featuredevicefirmwarelayout"
+        app:layout_constraintStart_toStartOf="parent"
+        />
+
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:id="@+id/featuredevicefirmwarelayout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintTop_toBottomOf="@+id/featuredeviceserial"
+        app:layout_constraintEnd_toEndOf="parent"
+        >
+        <TextView
+            android:id="@+id/featuredevicefirmware"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_marginEnd="8dp"
+            android:layout_marginStart="8dp"
+            android:layout_weight="0.85"
+            tools:text="1.2.3"
+            android:text="@string/obvious_device_blank"
+            />
+
+        <ImageButton
+            android:id="@+id/featuredevicefirmwarecheck"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.15"
+            app:srcCompat="@drawable/ic_refresh_24px" />
+
+    </androidx.appcompat.widget.LinearLayoutCompat>
+
+    <TextView
+        android:id="@+id/featuredevicebootlabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        android:text="@string/obvious_label_deviceboot"
+        app:layout_constraintTop_toBottomOf="@+id/featuredevicefirmwarelayout"
+        app:layout_constraintStart_toStartOf="parent"
+        />
+
+    <TextView
+        android:id="@+id/featuredeviceboot"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        tools:text="4.5.6"
+        android:text="@string/obvious_device_blank"
+        app:layout_constraintTop_toBottomOf="@+id/featuredevicefirmwarelayout"
+        app:layout_constraintEnd_toEndOf="parent"
+        />
+
+    <TextView
+        android:id="@+id/featuredevicesoftlabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        android:text="@string/obvious_label_devicesoftdevice"
+        app:layout_constraintTop_toBottomOf="@+id/featuredevicebootlabel"
+        app:layout_constraintStart_toStartOf="parent"
+        />
+
+    <TextView
+        android:id="@+id/featuredevicesoft"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        tools:text="7.8.9"
+        android:text="@string/obvious_device_blank"
+        app:layout_constraintTop_toBottomOf="@+id/featuredeviceboot"
+        app:layout_constraintEnd_toEndOf="parent"
+        />
+
     <ListView
         android:id="@+id/featurelist"
         android:layout_width="match_parent"
@@ -99,7 +187,7 @@
         android:layout_marginEnd="8dp"
         android:text="@string/obvious_label_featurelist"
         android:textStyle="bold"
-        app:layout_constraintTop_toBottomOf="@+id/featuredeviceseriallabel"
+        app:layout_constraintTop_toBottomOf="@+id/featuredevicesoftlabel"
         app:layout_constraintBottom_toTopOf="@id/featurelist"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
