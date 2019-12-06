@@ -730,7 +730,7 @@ class BluetoothInteractor
                                         }
                                         try {
                                             _descriptorStatus = false;
-                                            _descriptorLock.wait(500);
+                                            _descriptorLock.wait(5000);
                                             if (BuildConfig.DEBUG) {
                                                 Log.d(LOG_TAG, "\t\t\t+++++     WAITING..." + (_descriptorStatus ? "OK" : "FAILED"));
                                             }
@@ -864,7 +864,7 @@ class BluetoothInteractor
                             _bleDevice.deviceConnected = true;
                         }
                     }
-                },600);
+                },2000);
             }
             if (BuildConfig.DEBUG) {
                 Log.d(LOG_TAG, "onConnectionStateChange() --  DONE");
@@ -881,7 +881,12 @@ class BluetoothInteractor
             super.onServicesDiscovered(gatt, status);
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 // if services have been successfully discovered, setup any notifications/indications for the characteristics
-                _startNotificationSetup();
+                _handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        _startNotificationSetup();
+                    }
+                }, 500);
             } else {
                 onConnectionStateChange(gatt,BluetoothGatt.GATT_SUCCESS,BluetoothProfile.STATE_DISCONNECTED);
             }
