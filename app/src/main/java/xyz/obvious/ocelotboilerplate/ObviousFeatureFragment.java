@@ -111,7 +111,8 @@ public class ObviousFeatureFragment extends Fragment implements
     private HashMap<String, Integer> _obviousFeatures = null;
 
     private String _prodId = null;
-    private String _fwver = null;;
+    private String _currentFwver = null;;
+    private String _newFwver = null;
     private String _fwbootver = null;;
     private String _fwsoftver = null;;
 
@@ -173,9 +174,9 @@ public class ObviousFeatureFragment extends Fragment implements
             tmpList.setAdapter(featureListAdapter);
         }
 
-        ImageButton tmpImgBtn = tmpView.findViewById(R.id.featuredevicefirmwarecheck);
-        if (tmpImgBtn != null) {
-            tmpImgBtn.setOnClickListener(new View.OnClickListener() {
+        tmpBtn = tmpView.findViewById(R.id.featuredevicefirmwarecheck);
+        if (tmpBtn != null) {
+            tmpBtn.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
                     _firmwareManualCheck = true;
@@ -295,7 +296,7 @@ public class ObviousFeatureFragment extends Fragment implements
         scanListAdapter.notifyDataSetChanged();
 
         // TODO: Add the appropriate service filter for your device.
-        _serviceClient.setScanServiceFilter(new String[] {"EF680100-9B35-4933-9B10-52FFA9740042"});
+        _serviceClient.setScanServiceFilter(new String[]{});
         _serviceClient.startScanForDevices(getActivity(), new BluetoothScanResultListener() {
             @Override
             public void onScanResults(ArrayList<DeviceRecord> results) {
@@ -436,8 +437,8 @@ public class ObviousFeatureFragment extends Fragment implements
         }
         tmpText = (TextView)rootView.findViewById(R.id.featuredevicefirmware);
         if (tmpText != null) {
-            if (devName != null && _fwver != null && !"".equals(_fwver)) {
-                tmpText.setText(_fwver);
+            if (devName != null && _currentFwver != null && !"".equals(_currentFwver)) {
+                tmpText.setText(_currentFwver);
             } else {
                 tmpText.setText(R.string.obvious_device_blank);
             }
@@ -506,9 +507,6 @@ public class ObviousFeatureFragment extends Fragment implements
                 _progressDlg.dismiss();
                 _progressDlg = null;
             }
-
-            _progressDlg = ProgressDialog.show(getContext(), null, getString(R.string.obvious_feature_loadstatus), true, false);
-            _progressDlg.show();
 
             _obviousMgr.getFeatureList();
         }
@@ -708,6 +706,14 @@ public class ObviousFeatureFragment extends Fragment implements
         featureListAdapter.notifyDataSetChanged();
         _obviousMgr.getDeviceInfo(this);
 
+        if (_progressDlg != null) {
+            _progressDlg.dismiss();
+            _progressDlg = null;
+        }
+
+        _progressDlg = ProgressDialog.show(getContext(), null, getString(R.string.obvious_feature_loadstatus), true, false);
+        _progressDlg.show();
+
         _obviousFeatures = new HashMap<>(features);
         featureKeys = _obviousFeatures.entrySet().iterator();
         _processFeatureList();
@@ -727,7 +733,7 @@ public class ObviousFeatureFragment extends Fragment implements
     @Override
     public void onFirmwareUpgradeAvailable(long currentVersionCode, OcelotFirmwareInfo ocelotFirmwareInfo) {
         _clearProgressDialog();
-
+        _newFwver = null;
         if (currentVersionCode != OcelotFirmwareManager.INVALID_FIRMWARE_VERSION && ocelotFirmwareInfo != null) {
             if (BuildConfig.DEBUG) {
                 Log.d(this.getClass().getSimpleName(), "onFirmwareUpgradeAvailable() - ocelotFirmwareInfo.versionCode = " + ocelotFirmwareInfo.versionCode);
@@ -735,7 +741,8 @@ public class ObviousFeatureFragment extends Fragment implements
             if (_firmwareAvail != null && _firmwareAvail.isShown()) {
                 _firmwareAvail.dismiss();
             }
-            _firmwareAvail = Snackbar.make(rootView,R.string.obvious_firmware_message,Snackbar.LENGTH_INDEFINITE);
+            _newFwver = String.format(Locale.getDefault(),"%d.%d.%d",ocelotFirmwareInfo.versionCode/1000000L, (ocelotFirmwareInfo.versionCode/1000L)%1000L, ocelotFirmwareInfo.versionCode%1000L);
+            _firmwareAvail = Snackbar.make(rootView,getString(R.string.obvious_firmware_message, _newFwver), Snackbar.LENGTH_INDEFINITE);
             _firmwareAvail.setAction(R.string.obvious_firmware_upgrade, new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
@@ -744,6 +751,12 @@ public class ObviousFeatureFragment extends Fragment implements
                 }
             });
             _firmwareAvail.show();
+        } else if (_firmwareManualCheck) {
+            AlertDialog.Builder alert = new AlertDialog.Builder(getContext());
+            alert.setTitle(R.string.obvious_firmware_up_to_date_title)
+                    .setMessage(R.string.obvious_firmware_up_to_date_message)
+                    .setCancelable(true);
+            alert.show();
         }
 
         // Start the feature update process after the firmware check process
@@ -815,7 +828,7 @@ public class ObviousFeatureFragment extends Fragment implements
         _clearProgressDialog();
         AlertDialog.Builder alert = new AlertDialog.Builder(getContext());
         alert.setTitle(R.string.obvious_firmware_otastatus)
-                .setMessage(R.string.obvious_firmware_otaupgradesuccess)
+                .setMessage(getString(R.string.obvious_firmware_otaupgradesuccess, _currentFwver, _newFwver))
                 .setCancelable(true);
         alert.show();
 
@@ -853,7 +866,7 @@ public class ObviousFeatureFragment extends Fragment implements
         if (_prodId == null || _prodId.equals("") || _prodId.equals("-1")) {
             _prodId = ObviousProductIdentifier.MANUFACTURER_PRODUCT_ID1;
         }
-        _fwver = ocelotDeviceInfo.getFirmwareVersion();
+        _currentFwver = ocelotDeviceInfo.getFirmwareVersion();
         _fwbootver = ocelotDeviceInfo.getBootLoaderVersion();
         _fwsoftver = ocelotDeviceInfo.getSoftDeviceVersion();
         if (getFragmentManager() != null) {

@@ -154,6 +154,12 @@ public class ObviousStoreFragment extends Fragment implements
         if (tmpList != null && tmpList.getCheckedItemCount() > 0) {
             featureIds = tmpList.getCheckedItemIds();
             _cartContent = tmpList.getCheckedItemPositions();
+        } else {
+            AlertDialog.Builder alert = new AlertDialog.Builder(getContext());
+            alert.setTitle(R.string.obvious_store_noitemstitle)
+                    .setMessage(R.string.obvious_store_noitemsmessage)
+                    .setCancelable(true);
+            alert.show();
         }
 
         if (catalogInteractor != null && featureIds != null) {

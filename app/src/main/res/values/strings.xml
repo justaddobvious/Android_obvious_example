@@ -45,16 +45,19 @@
     <string name="obvious_button_disconnect">Disconnect</string>
     <string name="obvious_button_scan">Scan</string>
     <string name="obvious_button_store">Store</string>
+    <string name="obvious_button_update">Update</string>
 
     <string name="obvious_store_error">Error loading web store</string>
     <string name="obvious_store_retry">Retry</string>
     <string name="obvious_store_connecting">Loading feature catalog&#8230;</string>
+    <string name="obvious_store_noitemstitle">No Items Selected</string>
+    <string name="obvious_store_noitemsmessage">Please select one or more items to purchase.</string>
 
     <string name="obvious_label_devicename">Device name</string>
     <string name="obvious_label_deviceserial">Serial number</string>
-    <string name="obvious_label_devicefirmware">Firmware</string>
-    <string name="obvious_label_deviceboot">Bootloader</string>
-    <string name="obvious_label_devicesoftdevice">Soft device</string>
+    <string name="obvious_label_devicefirmware">FIRMWARE</string>
+    <string name="obvious_label_deviceboot">BOOTLOADER</string>
+    <string name="obvious_label_devicesoftdevice">SOFTDEVICE</string>
     <string name="obvious_label_scanlist">Devices found</string>
     <string name="obvious_label_featurelist">Device feature list</string>
 
@@ -70,7 +73,9 @@
     <string name="obvious_cart_totallabel">Total</string>
 
     <string name="obvious_firmware_check">Checking for new firmware&#8230;</string>
-    <string name="obvious_firmware_message">New firmware is available</string>
+    <string name="obvious_firmware_up_to_date_title">Up to Date</string>
+    <string name="obvious_firmware_up_to_date_message">Your firmware is up to date.</string>
+    <string name="obvious_firmware_message">Firmware version %1$s is available</string>
     <string name="obvious_firmware_upgrade">Upgrade</string>
     <string name="obvious_firmware_ota">Starting firmware upgrade&#8230;</string>
     <string name="obvious_firmware_otaprepare">Configuring device for upgrade&#8230;</string>
@@ -78,7 +83,7 @@
     <string name="obvious_firmware_otastatus">Firmware upgrade status</string>
     <string name="obvious_firmware_otadownloaderror">Unable to download firmware</string>
     <string name="obvious_firmware_otaupgradeerror">Firmware upgrade FAILED!</string>
-    <string name="obvious_firmware_otaupgradesuccess">Firmware upgrade SUCCESSFUL!</string>
+    <string name="obvious_firmware_otaupgradesuccess">Firmware upgraded successfully from %1$s to %2$s!</string>
     <string name="obvious_firmware_otaresetting">Waiting for device to restart&#8230;</string>
     <string name="obvious_firmware_loadversioninfo">Reloading device information&#8230;</string>
 

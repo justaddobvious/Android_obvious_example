@@ -33,9 +33,12 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.obvious.mobileapi.OcelotCatalogListResultListener;
+import com.squareup.picasso.Picasso;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+
+import java.util.Locale;
 
 /**
  * Custom ArrayAdapter for displaying the catalog items available for the manufacturer.  This adapter
@@ -86,7 +89,13 @@ public class CatalogListAdapter extends ArrayAdapter<OcelotCatalogListResultList
         if (infoItem != null && viewHolder != null) {
             ((ViewHolder)viewHolder).name.setText(infoItem.name);
             ((ViewHolder)viewHolder).description.setText(infoItem.description);
-            ((ViewHolder)viewHolder).price.setText(String.valueOf(infoItem.itemprice));
+            ((ViewHolder)viewHolder).price.setText(String.format(Locale.getDefault(), "%1.2f\n", infoItem.itemprice));
+            if (infoItem.thumbnailurl != null && infoItem.thumbnailurl.length() > 0 && !"null".equals(infoItem.thumbnailurl)) {
+                ((ViewHolder) viewHolder).thumbNail.setVisibility(View.VISIBLE);
+                Picasso.get().load(infoItem.thumbnailurl).into(((ViewHolder) viewHolder).thumbNail);
+            } else {
+                ((ViewHolder) viewHolder).thumbNail.setVisibility(View.INVISIBLE);
+            }
         } else {
             Log.d(this.getClass().getSimpleName(), "itemInfo is null");
         }

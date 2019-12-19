@@ -22,7 +22,9 @@
   ~
   -->
 
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
         xmlns:tools="http://schemas.android.com/tools"
         android:id="@+id/itemrow"
         android:layout_width="match_parent"
@@ -30,14 +32,22 @@
         android:orientation="horizontal"
         android:background="@drawable/store_item_selector">
 
-    <ImageView
-        android:id="@+id/itemthumb"
-        android:layout_width="0dp"
-        android:layout_height="64dp"
-        android:layout_gravity="center_vertical"
-        tools:srcCompat="@tools:sample/avatars"
-        android:contentDescription="@string/obvious_payment_thumbdescription"
-        android:layout_weight="20"/>
+    <androidx.cardview.widget.CardView
+        android:id="@+id/roundCardView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:elevation="0dp"
+        app:cardCornerRadius="28dp"
+        app:cardPreventCornerOverlap="false">
+        <ImageView
+            android:id="@+id/itemthumb"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_gravity="center"
+            tools:srcCompat="@tools:sample/avatars"
+            android:contentDescription="@string/obvious_payment_thumbdescription" />
+    </androidx.cardview.widget.CardView>
 
     <LinearLayout
         android:layout_width="0dp"
